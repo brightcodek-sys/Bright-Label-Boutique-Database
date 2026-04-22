@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bright Label Admin</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <style>
+        /* Simple CSS for old browsers */
+        body { 
+            font-family: Helvetica, Arial, sans-serif; 
+            background-color: #f0f2f5; 
+            margin: 0; 
+            padding: 20px; 
+            color: #333;
+        }
+        .header {
+            background-color: #d63384; /* Boutique Pink */
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status-box {
+            font-size: 12px;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .product-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 5px solid #d63384;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .product-name {
+            font-weight: bold;
+            font-size: 18px;
+            display: block;
+        }
+        .product-info {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .price-tag {
+            color: #28a745;
+            font-weight: bold;
+            float: right;
+        }
+        button {
+            padding: 10px 20px;
+            background: #d63384;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Bright Label Admin</h1>
+    </div>
+
+    <div id="status" class="status-box">Status: Initializing Firebase...</div>
+
+    <button onclick="loadProducts()">Refresh Inventory</button>
+
+    <div id="inventory-list" style="margin-top: 20px;">
+        </div>
+
+    <script>
+        // 1. Your specific Bright Label credentials
+        var firebaseConfig = {
+            apiKey: "AIzaSyBzVQi7NmFPJA44ulxtIJujA4fn2Hc7qLA",
+            authDomain: "bright-label.firebaseapp.com",
+            projectId: "bright-label",
+            storageBucket: "bright-label.firebasestorage.app",
+            messagingSenderId: "1008754785320",
+            appId: "1:1008754785320:web:988554796007d853b6891d"
+        };
+
+        // 2. Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            var db = firebase.firestore();
+            document.getElementById('status').innerText = "Status: Connected to Bright Label.";
+        } catch (e) {
+            document.getElementById('status').innerText = "Status: Error initializing - " + e.message;
+        }
+
+        // 3. Function to Fetch Data
+        function loadProducts() {
+            document.getElementById('status').innerText = "Status: Fetching inventory...";
+            var listContainer = document.getElementById('inventory-list');
+            listContainer.innerHTML = ""; // Clear list
+
+            // NOTE: Replace "products" with the actual name of your collection
+            db.collection("products").get().then(function(querySnapshot) {
+                if (querySnapshot.empty) {
+                    document.getElementById('status').innerText = "Status: No products found.";
+                    return;
+                }
+
+                querySnapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    
+                    var card = document.createElement('div');
+                    card.className = 'product-card';
+                    
+                    card.innerHTML = 
+                        '<span class="price-tag">₦' + (data.price || '0') + '</span>' +
+                        '<span class="product-name">' + (data.name || 'Unnamed Item') + '</span>' +
+                        '<div class="product-info">Stock: ' + (data.stock || 0) + ' | Category: ' + (data.category || 'General') + '</div>';
+                    
+                    listContainer.appendChild(card);
+                });
+
+                document.getElementById('status').innerText = "Status: Inventory Updated at " + new Date().toLocaleTimeString();
+            }).catch(function(error) {
+                document.getElementById('status').innerText = "Status: Error - " + error.message;
+                console.error("Firestore Error:", error);
+            });
+        }
+
+        // Run automatically on start
+        window.onload = loadProducts;
+    </script>
+</body>
+</html>
