@@ -3,67 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bright Label Admin</title>
+    <title>Bright Label - View Admins</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <style>
-        /* Simple CSS for old browsers */
-        body { 
-            font-family: Helvetica, Arial, sans-serif; 
-            background-color: #f0f2f5; 
-            margin: 0; 
-            padding: 20px; 
-            color: #333;
-        }
-        .header {
-            background-color: #d63384; /* Boutique Pink */
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .status-box {
-            font-size: 12px;
-            padding: 10px;
-            background: #fff;
-            border: 1px solid #ccc;
-            margin-bottom: 15px;
-            border-radius: 5px;
-        }
-        .product-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 5px solid #d63384;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .product-name {
-            font-weight: bold;
-            font-size: 18px;
-            display: block;
-        }
-        .product-info {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-        .price-tag {
-            color: #28a745;
-            font-weight: bold;
-            float: right;
-        }
-        button {
-            padding: 10px 20px;
-            background: #d63384;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-        }
+        body { font-family: Helvetica, sans-serif; background-color: #f4f4f4; padding: 15px; }
+        .header { background: #d63384; color: white; padding: 15px; border-radius: 8px; text-align: center; }
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 450px; margin: 20px auto; }
+        input { width: 90%; padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+        button { padding: 10px 20px; background: #d63384; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        .hidden { display: none; }
+        .user-row { background: #fff1f6; padding: 10px; margin-top: 8px; border-radius: 5px; border: 1px solid #ffc1e3; display: flex; justify-content: space-between; }
+        #status { font-size: 12px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -72,15 +26,33 @@
         <h1>Bright Label Admin</h1>
     </div>
 
-    <div id="status" class="status-box">Status: Initializing Firebase...</div>
+    <div id="login-section" class="box">
+        <h3>Login</h3>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPass" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <div id="loginStatus"></div>
+    </div>
 
-    <button onclick="loadProducts()">Refresh Inventory</button>
-
-    <div id="inventory-list" style="margin-top: 20px;">
+    <div id="dashboard" class="hidden">
+        <div class="box">
+            <h3>Add New Admin</h3>
+            <input type="email" id="newEmail" placeholder="Email">
+            <input type="password" id="newPass" placeholder="Password">
+            <button onclick="createNewAdmin()">Register & Save</button>
+            <div id="regStatus"></div>
+            
+            <hr>
+            
+            <h3>Registered Admins</h3>
+            <div id="admin-list">Loading users...</div>
+            
+            <hr>
+            <button onclick="logout()" style="background:#666;">Logout</button>
         </div>
+    </div>
 
     <script>
-        // 1. Your specific Bright Label credentials
         var firebaseConfig = {
             apiKey: "AIzaSyBzVQi7NmFPJA44ulxtIJujA4fn2Hc7qLA",
             authDomain: "bright-label.firebaseapp.com",
@@ -90,51 +62,65 @@
             appId: "1:1008754785320:web:988554796007d853b6891d"
         };
 
-        // 2. Initialize Firebase
-        try {
-            firebase.initializeApp(firebaseConfig);
-            var db = firebase.firestore();
-            document.getElementById('status').innerText = "Status: Connected to Bright Label.";
-        } catch (e) {
-            document.getElementById('status').innerText = "Status: Error initializing - " + e.message;
-        }
+        firebase.initializeApp(firebaseConfig);
+        var auth = firebase.auth();
+        var db = firebase.firestore();
 
-        // 3. Function to Fetch Data
-        function loadProducts() {
-            document.getElementById('status').innerText = "Status: Fetching inventory...";
-            var listContainer = document.getElementById('inventory-list');
-            listContainer.innerHTML = ""; // Clear list
+        auth.onAuthStateChanged(function(user) {
+            if (user) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                viewAdmins();
+            } else {
+                document.getElementById('login-section').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
 
-            // NOTE: Replace "products" with the actual name of your collection
-            db.collection("products").get().then(function(querySnapshot) {
-                if (querySnapshot.empty) {
-                    document.getElementById('status').innerText = "Status: No products found.";
-                    return;
-                }
-
-                querySnapshot.forEach(function(doc) {
-                    var data = doc.data();
-                    
-                    var card = document.createElement('div');
-                    card.className = 'product-card';
-                    
-                    card.innerHTML = 
-                        '<span class="price-tag">₦' + (data.price || '0') + '</span>' +
-                        '<span class="product-name">' + (data.name || 'Unnamed Item') + '</span>' +
-                        '<div class="product-info">Stock: ' + (data.stock || 0) + ' | Category: ' + (data.category || 'General') + '</div>';
-                    
-                    listContainer.appendChild(card);
-                });
-
-                document.getElementById('status').innerText = "Status: Inventory Updated at " + new Date().toLocaleTimeString();
-            }).catch(function(error) {
-                document.getElementById('status').innerText = "Status: Error - " + error.message;
-                console.error("Firestore Error:", error);
+        function login() {
+            var email = document.getElementById('loginEmail').value;
+            var pass = document.getElementById('loginPass').value;
+            auth.signInWithEmailAndPassword(email, pass).catch(function(e) {
+                document.getElementById('loginStatus').innerText = e.message;
             });
         }
 
-        // Run automatically on start
-        window.onload = loadProducts;
+        // --- THE DOUBLE-ENTRY TRICK ---
+        function createNewAdmin() {
+            var email = document.getElementById('newEmail').value;
+            var pass = document.getElementById('newPass').value;
+            
+            // 1. Create in Official Auth
+            auth.createUserWithEmailAndPassword(email, pass).then(function(cred) {
+                // 2. Save a reference in Firestore so we can VIEW it later
+                return db.collection("admin_list").add({
+                    email: email,
+                    uid: cred.user.uid,
+                    createdAt: new Date()
+                });
+            }).then(function() {
+                document.getElementById('regStatus').innerText = "Admin created and saved!";
+                viewAdmins(); // Refresh the list
+            }).catch(function(e) {
+                document.getElementById('regStatus').innerText = e.message;
+            });
+        }
+
+        function viewAdmins() {
+            var list = document.getElementById('admin-list');
+            list.innerHTML = "";
+            db.collection("admin_list").get().then(function(snap) {
+                snap.forEach(function(doc) {
+                    var user = doc.data();
+                    var div = document.createElement('div');
+                    div.className = 'user-row';
+                    div.innerHTML = '<span>' + user.email + '</span>';
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        function logout() { auth.signOut(); }
     </script>
 </body>
 </html>
